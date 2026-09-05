@@ -232,6 +232,15 @@ EOF
         echo -e "\n❌ ERROR: CLI failed to communicate with the daemon. Check 'systemctl status omen-space-daemon'."
     fi
 
+    if [ -n "$SUDO_USER" ] && [ -x /usr/bin/omen-tray ]; then
+        local user_id
+        user_id=$(id -u "$SUDO_USER")
+        if [ -d "/run/user/$user_id" ]; then
+            echo "Starting omen-tray for $SUDO_USER..."
+            su - "$SUDO_USER" -c "DISPLAY=${DISPLAY:-:0} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0} XDG_RUNTIME_DIR=/run/user/$user_id /usr/bin/omen-tray >/dev/null 2>&1 &" || true
+        fi
+    fi
+
     echo "====================================="
     echo " Cleaning build cache to free disk space..."
     echo "====================================="

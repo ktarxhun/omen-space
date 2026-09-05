@@ -19,9 +19,52 @@ mod asset_resolver;
 
 const APP_ID: &str = "org.hp.OmenSpace";
 
+fn ensure_tray_running() {
+    let is_running = std::process::Command::new("pgrep")
+        .arg("-x")
+        .arg("omen-tray")
+        .output()
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    if !is_running {
+        let spawned = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|dir| dir.join("omen-tray")))
+            .and_then(|tray_path| {
+                if tray_path.exists() {
+                    std::process::Command::new(tray_path)
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .ok()
+                } else {
+                    None
+                }
+            });
+
+        if spawned.is_none() {
+            let _ = std::process::Command::new("omen-tray")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .or_else(|_| {
+                    std::process::Command::new("/usr/bin/omen-tray")
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                });
+        }
+    }
+}
+
 fn main() {
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| {
+        ensure_tray_running();
         adw::init().expect("Failed to initialize libadwaita");
         i18n::init();
         
@@ -91,8 +134,10 @@ fn apply_appearance_mode() {
 fn build_ui(app: &adw::Application) {
     apply_startup_profile();
     apply_appearance_mode();
+    ensure_tray_running();
 
-    if let Some(window) = app.active_window() {
+    if let Some(window) = app.active_window().or_else(|| app.windows().first().cloned()) {
+        window.set_visible(true);
         window.present();
         return;
     }
@@ -106,6 +151,7 @@ fn build_ui(app: &adw::Application) {
 
     // Close button hides the window instead of killing the process (Minimize to Tray)
     window.connect_close_request(move |win| {
+        ensure_tray_running();
         win.set_visible(false);
         gtk::glib::Propagation::Stop
     });

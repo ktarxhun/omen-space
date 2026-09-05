@@ -18,6 +18,62 @@ where
     }
 }
 
+fn acquire_single_instance_lock() -> Option<std::fs::File> {
+    let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
+        .unwrap_or_else(|_| format!("/tmp/user-{}", unsafe { libc::getuid() }));
+    let lock_path = format!("{}/omen-tray.lock", runtime_dir);
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .ok()?;
+
+    use std::os::unix::io::AsRawFd;
+    let fd = file.as_raw_fd();
+    let res = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
+    if res != 0 {
+        return None;
+    }
+
+    Some(file)
+}
+
+fn spawn_gui() {
+    let spawned = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|dir| dir.join("omen-gui")))
+        .and_then(|gui_path| {
+            if gui_path.exists() {
+                Command::new(gui_path)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .ok()
+            } else {
+                None
+            }
+        });
+
+    if spawned.is_none() {
+        let _ = Command::new("omen-gui")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .or_else(|_| {
+                Command::new("/usr/bin/omen-gui")
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+            });
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Tray {
     power_profile: String,
@@ -70,7 +126,7 @@ impl ksni::Tray for Tray {
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
-        let _ = Command::new("omen-gui").spawn();
+        spawn_gui();
     }
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
@@ -82,7 +138,7 @@ impl ksni::Tray for Tray {
                 label: "OMENSpace'i Aç".into(),
                 icon_name: "omenspace".into(),
                 activate: Box::new(|_| {
-                    let _ = Command::new("omen-gui").spawn();
+                    spawn_gui();
                 }),
                 ..Default::default()
             }
@@ -179,6 +235,8 @@ impl ksni::Tray for Tray {
                 label: "❌ Çıkış".into(),
                 icon_name: "application-exit".into(),
                 activate: Box::new(|_| {
+                    let _ = Command::new("pkill").arg("-TERM").arg("-x").arg("omen-gui").output();
+                    let _ = Command::new("pkill").arg("-TERM").arg("-x").arg("omenctl").output();
                     std::process::exit(0);
                 }),
                 ..Default::default()
@@ -262,6 +320,14 @@ async fn set_fan_mode(mode: &str) {
 
 #[tokio::main]
 async fn main() {
+    let _lock_file = match acquire_single_instance_lock() {
+        Some(file) => file,
+        None => {
+            eprintln!("omen-tray zaten çalışıyor, ikinci örnek sonlandırılıyor.");
+            return;
+        }
+    };
+
     env_logger::init();
     info!("omen-tray başlatılıyor...");
 

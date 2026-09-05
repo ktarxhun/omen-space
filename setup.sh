@@ -22,7 +22,43 @@ install_dependencies() {
         apt-get install -y cargo rustc build-essential pkg-config libgtk-4-dev libadwaita-1-dev libsystemd-dev libdbus-1-dev dkms linux-headers-$(uname -r)
     elif command -v pacman &> /dev/null; then
         echo "Detected Arch Linux. Installing dependencies via pacman..."
-        pacman -S --needed --noconfirm rust cargo gcc pkgconf gtk4 libadwaita systemd dbus base-devel linux-headers dkms
+        local ARCH_PKGS=(rust gcc pkgconf gtk4 libadwaita systemd dbus base-devel dkms)
+        
+        # Only install headers if not already available for the running kernel
+        if [ ! -d "/lib/modules/$(uname -r)/build" ] && [ ! -d "/usr/lib/modules/$(uname -r)/build" ]; then
+            local RUNNING_KVER
+            RUNNING_KVER=$(uname -r)
+            if [[ $RUNNING_KVER == *"-cachyos"* ]]; then
+                local SUFFIX
+                SUFFIX=$(echo "$RUNNING_KVER" | sed 's/^[0-9.]*-[0-9]*-\(.*\)/\1/')
+                if [[ -n "$SUFFIX" ]] && pacman -Si "linux-$SUFFIX-headers" &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("linux-$SUFFIX-headers")
+                elif pacman -Si linux-cachyos-headers &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("linux-cachyos-headers")
+                else
+                    ARCH_PKGS+=("linux-headers")
+                fi
+            elif [[ $RUNNING_KVER == *"-zen"* ]]; then
+                ARCH_PKGS+=("linux-zen-headers")
+            elif [[ $RUNNING_KVER == *"-lts"* ]]; then
+                ARCH_PKGS+=("linux-lts-headers")
+            elif [[ $RUNNING_KVER == *"-hardened"* ]]; then
+                ARCH_PKGS+=("linux-hardened-headers")
+            elif [[ $RUNNING_KVER == *"-rt"* ]]; then
+                ARCH_PKGS+=("linux-rt-headers")
+            else
+                local KVER_MAJOR KVER_MINOR VERSIONED_PKG
+                KVER_MAJOR=$(echo "$RUNNING_KVER" | cut -d. -f1)
+                KVER_MINOR=$(echo "$RUNNING_KVER" | cut -d. -f2)
+                VERSIONED_PKG="linux${KVER_MAJOR}${KVER_MINOR}-headers"
+                if pacman -Si "$VERSIONED_PKG" &>/dev/null 2>&1; then
+                    ARCH_PKGS+=("$VERSIONED_PKG")
+                else
+                    ARCH_PKGS+=("linux-headers")
+                fi
+            fi
+        fi
+        pacman -S --needed --noconfirm "${ARCH_PKGS[@]}"
     else
         echo "Warning: Unsupported package manager. Please ensure rust, cargo, gtk4, and libadwaita dev packages are installed."
     fi

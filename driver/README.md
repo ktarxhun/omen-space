@@ -1,4 +1,4 @@
-# hp-wmi — Manual Fan Control & Keyboard RGB for HP Laptops
+# hp-wmi - Manual Fan Control & Keyboard RGB for HP Laptops
 
 A Linux kernel module that adds manual fan speed control and keyboard RGB backlight support for HP Omen, Victus, and similar laptops.
 
@@ -8,11 +8,11 @@ A Linux kernel module that adds manual fan speed control and keyboard RGB backli
 
 ## Features
 
-- 🌀 **Manual fan speed control** — set custom RPM via hwmon interface
-- 🔄 **Fan mode switching** — Automatic / Manual / Max via `pwm1_enable`
-- 🎨 **Keyboard RGB backlight** — single-zone & 4-zone via LED multicolor interface
-- 📊 **Performance profiles** — `performance` / `balanced` / `low-power` integrated with `power-profiles-daemon` (GNOME/KDE)
-- ⌨️ **Fn+P hotkey** — cycle performance profiles from the keyboard
+- 🌀 **Manual fan speed control** - set custom RPM via hwmon interface
+- 🔄 **Fan mode switching** - Automatic / Manual / Max via `pwm1_enable`
+- 🎨 **Keyboard RGB backlight** - single-zone & 4-zone via LED multicolor interface
+- 📊 **Performance profiles** - `performance` / `balanced` / `low-power` integrated with `power-profiles-daemon` (GNOME/KDE)
+- ⌨️ **Fn+P hotkey** - cycle performance profiles from the keyboard
 
 > [!NOTE]
 > **HP Victus 15:** HP didn't mark manual fan control as supported on these laptops, even though the hardware supports it. Load the module with:
@@ -143,7 +143,7 @@ echo 128 | sudo tee /sys/class/leds/hp::kbd_backlight/brightness
 
 ### Performance Profiles
 
-Integrated with `power-profiles-daemon` — change profiles from GNOME/KDE power settings or via command line:
+Integrated with `power-profiles-daemon` - change profiles from GNOME/KDE power settings or via command line:
 
 ```bash
 cat /sys/firmware/acpi/platform_profile              # Current profile
@@ -159,7 +159,7 @@ echo low-power   | sudo tee /sys/firmware/acpi/platform_profile
 ## Tested On
 
 - Victus 16‑s1 (9Z791EA)
-- Victus 16‑r0053nt (i5‑13500H, RTX 4050) — *Tested by yunusemreyl*
+- Victus 16‑r0053nt (i5‑13500H, RTX 4050) - *Tested by yunusemreyl*
 - More testers needed! See [#1](https://github.com/TUXOV/hp-wmi-fan-and-backlight-control/issues/1)
 
 ## GUI
@@ -168,7 +168,7 @@ A new GUI for this driver is coming soon! Stay tuned.
 
 ## License
 
-GPL-2.0-or-later — see [LICENSE](LICENSE)
+GPL-2.0-or-later - see [LICENSE](LICENSE)
 
 ## Disclaimer
 
